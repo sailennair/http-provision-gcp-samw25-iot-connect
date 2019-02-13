@@ -35,7 +35,7 @@ char mqtt_user[64] = "unused";
 char mqtt_password[1024];
 
 //Each client ID is unique to the device
-char clientID[128] = "projects/altron-atwinc1500/locations/europe-west1/registries/arrow-registry/devices/samw25-iot";
+char clientID[256] = "projects/altron-atwinc1500/locations/europe-west1/registries/arrow-registry/devices/samw25-iot";
 
 // Instance of MQTT service.
 static struct mqtt_module mqtt_inst;
@@ -101,6 +101,14 @@ char *SSID_read[AT25DFX_BUFFER_SIZE];
 
 char *Password_read[AT25DFX_BUFFER_SIZE];
 
+char PROJECT_ID[64] = "altron-atwinc1500";
+
+char REGION_ID[64]	= "europe-west1";
+
+char REGISTRY_ID[64] = "arrow-registry";
+
+char DEVICE_ID[64]	=	"samw25-iot";
+
 static volatile uint32_t event_count = 0;
 
 //Boolean variables to indicate the connection and publish status to google cloud, only once both are activated can the
@@ -110,6 +118,7 @@ bool canPublish = false;
 bool gcpConnected = false;
 
 bool publishInterruptBool = false;
+
 
 typedef struct s_msg_wifi_product {
 	uint8_t name[9];
@@ -141,6 +150,8 @@ int commandTCP(char* IPAddress);
 void connectToGCP(void);
 
 void publishToGCP(void);
+
+void disconnectGCP(void);
 
 void event_counter(struct events_resource *resource);
 
@@ -203,6 +214,14 @@ static void set_dev_name_to_mac(uint8 *name, uint8 *mac_addr)
 		name[len - 5] = HEX2ASCII((mac_addr[4] >> 4) & 0x0f);
 	}
 }
+
+void updateClientID(void)
+{
+	printf("Old clientID %s\r\n", clientID);
+	snprintf(clientID, 256, "projects/%s/locations/%s/registries/%s/devices/%s",PROJECT_ID, REGION_ID, REGISTRY_ID, DEVICE_ID);
+	printf("New clientID %s\r\n", clientID);
+}
+
 
 //Wifi callback for the wifi-system
 static void wifi_callback(uint8 msg_type, void *msg_data)
@@ -372,7 +391,6 @@ static void server_socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 				break;
 			}
 			recv(tcp_client_socket, gau8SocketBuffer, sizeof(gau8SocketBuffer), 0);
-			
 		}
 
 		break;
@@ -420,7 +438,6 @@ void client_socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg){
 				tcp_client_socket_external = -1;
 			}
 		}
-
 		break;
 
 		default:
@@ -497,7 +514,7 @@ void handle_tcp_command(char* inputMessage){
 	
 	
 	while (pch != NULL){
-		printf("%s\n", pch);
+		//printf("%s\n", pch);
 		CommandArray[count++] = pch;
 		pch = strtok(NULL, "-");
 		
@@ -507,15 +524,88 @@ void handle_tcp_command(char* inputMessage){
 	size_t connectSize = 7;
 	size_t sendSize = 4;
 	
+	//Default ACK message for the TCP bridge
+	char ack_message[128] = "Command received";
+	
 	//Server can only take one command, however this functionality can be extended within this function.
 	if(!strncmp("GCP", CommandArray[0], commandSize)){
 		printf("Google Cloud Command");
-		if(!strncmp("CONNECT", CommandArray[1], connectSize)){
+		
+		if(!strncmp("CONNECT", CommandArray[1], strlen("CONNECT"))){
 			connectToGCP();
 			publishToGCP();
 			canPublish = true;
-			
 		}
+		
+		if(!strncmp("STOP", CommandArray[1], strlen("STOP"))){
+			disconnectGCP();
+			snprintf(ack_message, 128, "Disconnected from Google Cloud");
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+		
+		if(!strncmp("CLIENTID", CommandArray[1], strlen("CLIENTID"))){
+			printf("Changing Client ID \r\n");
+			strcpy(clientID, CommandArray[2]);
+			printf("The new Client ID is %s\r\n", clientID);
+			
+			snprintf(ack_message, 128, "ClientID updated to %s",clientID);
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+		
+		if(!strncmp("USERNAME", CommandArray[1], strlen("USERNAME"))){
+			printf("Changing the Username \r\n");
+			strcpy(mqtt_user, CommandArray[2]);
+			printf("The new username is %s\r\n", mqtt_user);
+			
+			snprintf(ack_message, 128, "Username updated to %s",mqtt_user);
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+		
+		if(!strncmp("PROJECTID", CommandArray[1], strlen("PROJECTID"))){
+			printf("Changing the PROJECTID \r\n");
+			strcpy(PROJECT_ID, CommandArray[2]);
+			printf("The new projectID is %s\r\n", PROJECT_ID);
+			
+			snprintf(ack_message, 128, "Project ID updated to %s",PROJECT_ID);
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+		
+		if(!strncmp("REGIONID", CommandArray[1], strlen("REGIONID"))){
+			printf("Changing the REGIONID \r\n");
+			strcpy(REGION_ID, CommandArray[2]);
+			printf("The new regionID is %s\r\n", REGION_ID);
+			
+			snprintf(ack_message, 128, "RegionID updated to %s",REGION_ID);
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+
+		if(!strncmp("REGISTRYID", CommandArray[1], strlen("REGISTRYID"))){
+			printf("Changing the REGISTRYID \r\n");
+			strcpy(REGISTRY_ID, CommandArray[2]);
+			printf("The new registryID is %s\r\n", REGISTRY_ID);
+			
+			snprintf(ack_message, 128, "Registry ID updated to %s",REGISTRY_ID);
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+
+		if(!strncmp("DEVICEID", CommandArray[1], strlen("DEVICEID"))){
+			printf("Changing the DEVICEID \r\n");
+			strcpy(DEVICE_ID, CommandArray[2]);
+			printf("The new deviceID is %s\r\n", DEVICE_ID);
+			
+			snprintf(ack_message, 128, "Device ID updated to %s",DEVICE_ID);
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+		
+		if(!strncmp("UPDATECLIENTID", CommandArray[1], strlen("UPDATE-CLIENTID"))){
+			printf("Updating the ClientID \r\n");
+			updateClientID();
+			printf("The new clientID is %s\r\n", clientID);
+			
+			snprintf(ack_message, 128, "ClientID updated using new details");
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+		
 		/*
 		if(!strncmp("PUBLISH", CommandArray[1], connectSize)){
 		canPublish = true;
@@ -546,6 +636,7 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
 				} else {
 				printf("Connect fail to server(%s)! retry it automatically.\r\n", main_mqtt_broker);
 				mqtt_connect(module_inst, main_mqtt_broker); /* Retry that. */
+				
 			}
 		}
 		break;
@@ -868,6 +959,13 @@ void connectToGCP(void){
 	mqtt_connect(&mqtt_inst, main_mqtt_broker);
 }
 
+void disconnectGCP(void){
+	mqtt_disconnect(&mqtt_inst, 1);
+	gcpConnected = false;
+	canPublish = false;
+	
+}
+
 //Publish a timestamp to google cloud
 void publishToGCP(void){
 	//publishes the utc timestamp in json format
@@ -1044,7 +1142,7 @@ int main(void)
 		printf("Chip is unresponsive\r\n");
 	}
 	
-	at25dfx_chip_wake(&at25dfx_chip);
+	//at25dfx_chip_wake(&at25dfx_chip);
 
 	// Initialize Wi-Fi parameters structure.
 	memset((uint8_t *)&param, 0, sizeof(tstrWifiInitParam));
@@ -1136,7 +1234,6 @@ int main(void)
 	//start the counter which the interrupt system uses
 	tc_start_counter(&tc_instance);
 
-	
 	
 	while (1) {
 		//Handle events from the network.

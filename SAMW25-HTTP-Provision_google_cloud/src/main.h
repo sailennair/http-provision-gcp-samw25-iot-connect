@@ -58,13 +58,13 @@ extern "C" {
 	#define MAIN_WORLDWIDE_NTP_POOL_HOSTNAME        "time.google.com"
 
 	//Details for the project in google cloud
-	#define PROJECT_ID				"altron-atwinc1500"
+	//#define PROJECT_ID				"altron-atwinc1500"
 
-	#define REGION_ID				"europe-west1"
+//	#define REGION_ID				"europe-west1"
 
-	#define REGISTRY_ID				"arrow-registry"
+//	#define REGISTRY_ID				"arrow-registry"
 
-	#define DEVICE_ID				"samw25-iot"
+//	#define DEVICE_ID				"samw25-iot"
 
 	static tstrM2MAPConfig gstrM2MAPConfig = {
 		MAIN_M2M_DEVICE_NAME, 1, 0, WEP_40_KEY_STRING_SIZE, MAIN_M2M_AP_WEP_KEY, (uint8)MAIN_M2M_AP_SEC, MAIN_M2M_AP_SSID_MODE
