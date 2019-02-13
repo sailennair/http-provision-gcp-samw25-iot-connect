@@ -49,7 +49,7 @@ extern "C" {
 	#define CONF_TC_MODULE TC4
 
 	//Topic to where the device will publish data to
-	#define MAIN_CHAT_TOPIC "/devices/samw25-iot/state"
+	//#define MAIN_CHAT_TOPIC "/devices/samw25-iot/state"
 
 	//MQTT details for google cloud
 	#define main_mqtt_broker  "mqtt.googleapis.com"

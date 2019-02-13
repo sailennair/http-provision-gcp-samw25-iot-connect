@@ -101,6 +101,7 @@ char *SSID_read[AT25DFX_BUFFER_SIZE];
 
 char *Password_read[AT25DFX_BUFFER_SIZE];
 
+//default values, it can be changed through a tcp connection 
 char PROJECT_ID[64] = "altron-atwinc1500";
 
 char REGION_ID[64]	= "europe-west1";
@@ -108,6 +109,8 @@ char REGION_ID[64]	= "europe-west1";
 char REGISTRY_ID[64] = "arrow-registry";
 
 char DEVICE_ID[64]	=	"samw25-iot";
+
+char MAIN_CHAT_TOPIC[128] = "/devices/samw25-iot/state";
 
 static volatile uint32_t event_count = 0;
 
@@ -529,12 +532,14 @@ void handle_tcp_command(char* inputMessage){
 	
 	//Server can only take one command, however this functionality can be extended within this function.
 	if(!strncmp("GCP", CommandArray[0], commandSize)){
-		printf("Google Cloud Command");
+		printf("Google Cloud Command\r\n");
 		
 		if(!strncmp("CONNECT", CommandArray[1], strlen("CONNECT"))){
 			connectToGCP();
 			publishToGCP();
 			canPublish = true;
+			snprintf(ack_message, 128, "Connecting to Google Cloud");
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
 		}
 		
 		if(!strncmp("STOP", CommandArray[1], strlen("STOP"))){
