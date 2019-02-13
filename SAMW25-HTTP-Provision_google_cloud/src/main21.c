@@ -23,6 +23,18 @@ This application makes use of various example projects supplied by Microchip
 "-- Compiled: "__DATE__ " "__TIME__ " --"STRING_EOL
 
 
+char help[620] = "Welcome to SAMW25 Google Cloud Connect\r\n"
+"----COMMANDS---- \r\n"
+"GCP:CONNECT:0 - CONNECT to Google Cloud\r\n"
+"GCP:CLIENTID:{new clientID} - Change the Client ID \r\n"
+"GCP:PROJECTID:{new project ID} - Change the project ID \r\n"
+"GCP:REGIONID:{new region ID} - Change the region ID \r\n"
+"GCP:REGISTRYID:{new registry ID} -Change the registry ID \r\n"
+"GCP:DEVICEID:{new device ID} - Change the device ID \r\n"
+"GCP:UPDATE-CLIENTID - Update the client ID with the changed details\r\n"
+"GCP:PUB-TOPIC:{new publish topic} - Change the publish topic \r\n"
+"GCP:STOP - Disconnect from Google Cloud\r\n"
+"-----END OF COMMANDS----";	
 
 
 //UART module for debug.
@@ -32,7 +44,7 @@ static struct usart_module cdc_uart_module;
 char mqtt_user[64] = "unused";
 
 //Enough space is needed for the password as it is a large JWT
-char mqtt_password[1024];
+
 
 //Each client ID is unique to the device
 char clientID[256] = "projects/altron-atwinc1500/locations/europe-west1/registries/arrow-registry/devices/samw25-iot";
@@ -83,7 +95,7 @@ static uint8_t gau8SocketTestBuffer[MAIN_WIFI_M2M_BUFFER_SIZE];
 //IP address is converted to a number that can be used by the WINC
 long long int IPnumber;
 
-char* CommandArray[3];
+
 
 #define AT25DFX_BUFFER_SIZE  (100)
 
@@ -101,7 +113,7 @@ char *SSID_read[AT25DFX_BUFFER_SIZE];
 
 char *Password_read[AT25DFX_BUFFER_SIZE];
 
-//default values, it can be changed through a tcp connection 
+//default values, it can be changed through a tcp connection and the respective commands
 char PROJECT_ID[64] = "altron-atwinc1500";
 
 char REGION_ID[64]	= "europe-west1";
@@ -342,6 +354,7 @@ static void server_socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 				tcp_client_socket = pstrAccept->sock;
 				tcp_connected = 1;
 				recv(tcp_client_socket, gau8SocketTestBuffer, sizeof(gau8SocketTestBuffer), 0);
+				send(tcp_client_socket, help, strlen(help),0);
 				} else {
 				printf("socket_cb: accept error!\r\n");
 				close(tcp_server_socket);
@@ -508,18 +521,18 @@ static void socket_resolve_handler(uint8_t *doamin_name, uint32_t server_ip)
 void handle_tcp_command(char* inputMessage){
 	
 	char* pch;
-	
+	char* CommandArray[3];
 	int count = 0;
 	int arrCount = 0;
 	//printf("Splitting string into individual elements\r\n");
-	pch = strtok(inputMessage, "-");
+	pch = strtok(inputMessage, ":");
 	
 	
 	
 	while (pch != NULL){
-		//printf("%s\n", pch);
+		printf("%s\n", pch);
 		CommandArray[count++] = pch;
-		pch = strtok(NULL, "-");
+		pch = strtok(NULL, ":");
 		
 	}
 
@@ -602,12 +615,21 @@ void handle_tcp_command(char* inputMessage){
 			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
 		}
 		
-		if(!strncmp("UPDATECLIENTID", CommandArray[1], strlen("UPDATE-CLIENTID"))){
+		if(!strncmp("UPDATE-CLIENTID", CommandArray[1], strlen("UPDATE-CLIENTID"))){
 			printf("Updating the ClientID \r\n");
 			updateClientID();
 			printf("The new clientID is %s\r\n", clientID);
 			
 			snprintf(ack_message, 128, "ClientID updated using new details");
+			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
+		}
+		
+		if (!strncmp("PUB-TOPIC", CommandArray[1], strlen("PUB-TOPIC"))){
+			printf("Updating the publish topic\r\n");
+			strcpy(MAIN_CHAT_TOPIC, CommandArray[2]);
+			printf("The new publish topic is %s\r\n", MAIN_CHAT_TOPIC);
+			
+			snprintf(ack_message, 128, "publish topic updated to %s",MAIN_CHAT_TOPIC);
 			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
 		}
 		
@@ -632,8 +654,9 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
 			//Once the MQTT bridge is connected between the device and the broker, can now attempt to connect to device project
 			if (data->sock_connected.result >= 0) {
 				printf("\r\nConnecting to Broker...");
+				char mqtt_password[1024];
 				size_t size1 = 512;
-				memset(mqtt_password, 0, sizeof mqtt_password);
+				//memset(mqtt_password, 0, sizeof mqtt_password);
 				//Creation of mqtt password which is a JWT
 				config_mqtt_password(mqtt_password, size1);
 				delay_ms(100);
@@ -731,7 +754,7 @@ bool config_device(ATCADeviceType dev, uint8_t addr) {
 	cfg.rx_retries = 25;
 	if (atcab_init(&cfg) != ATCA_SUCCESS)
 	return false;
-	atcab_wakeup(); // may return error if device is already awake
+	//atcab_wakeup(); // may return error if device is already awake
 	return true;
 };
 
@@ -741,14 +764,21 @@ int config_mqtt_password(char* buf, size_t buflen){
 
 	if(buf && buflen)
 	{
+		//atcab_wakeup();
+		
 		atca_jwt_t jwt;
 		
 		m2m_wifi_get_system_time();
 		
-		uint32_t ts = rtc_count_get_count(&rtc_instance);
+		//uint32_t ts = rtc_count_get_count(&rtc_instance);
 
 		/* Build the JWT */
 		
+	if(config_device(ATECC108A, ECC108_I2C_ADDR)){
+		printf("ATECC108A Configured\r\n");
+	}
+
+		delay_ms(150);
 		rv = atca_jwt_init(&jwt, buf, buflen);
 		if(ATCA_SUCCESS != rv)
 		{
@@ -774,7 +804,7 @@ int config_mqtt_password(char* buf, size_t buflen){
 		if(rv != ATCA_SUCCESS){
 			
 		}
-		//printf("The JWT token is: %s\r\n", jwt);
+		printf("The JWT token is: %s\r\n", jwt);
 
 		atcab_release();
 	}
@@ -800,6 +830,12 @@ int config_print_public_key(void)
 	int i;
 	ATCA_STATUS rv;
 	
+	 rv = atcab_init(&cfg_ateccx08a_i2c_default);
+	 if(ATCA_SUCCESS != rv)
+	 {
+		 return rv;
+	 }
+	
 	// Calculate where the raw data will fit into the buffer
 	tmp = buf + sizeof(buf) - ATCA_PUB_KEY_SIZE - sizeof(public_key_x509_header);
 
@@ -807,7 +843,7 @@ int config_print_public_key(void)
 	memcpy(tmp, public_key_x509_header, sizeof(public_key_x509_header));
 
 	// Get public key without private key generation
-	//This illustrates that the private key is storred within space 0;
+	// This illustrates that the private key is storred within space 0;
 	rv = atcab_get_pubkey(0, tmp + sizeof(public_key_x509_header));
 
 	atcab_release();
@@ -860,11 +896,11 @@ long long int calculateIP(char *IPstring){
 }
 
 //Handles any input message from the UART, the application can open up a TCP connection to an external server,
-//furthermore the application can intiate a google cloud connection through the UART
+//furthermore the application can initiate a google cloud connection through the UART
 void handle_input_message(void)
 {
 	int i, msg_len;
-
+	char* CommandArray[3];
 	if (uart_buffer_written == 0) {
 		return;
 		} else if (uart_buffer_written >= MAIN_CHAT_BUFFER_SIZE) {
@@ -1131,22 +1167,27 @@ int main(void)
 	configure_event_interrupt(&example_event, &hook);
 	configure_tc(&tc_instance);
 	
-	at25dfx_init();
+	
 	
 	// Initialise the ATECC108A
-	if(config_device(ATECC108A, ECC108_I2C_ADDR)){
-		printf("ATECC108A Configured\r\n");
-	}
+// 	if(config_device(ATECC108A, ECC108_I2C_ADDR)){
+// 		printf("ATECC108A Configured\r\n");
+// 	}
+
+	at25dfx_init();
 	
 	//Wake up the ATECC108A chip
 	at25dfx_chip_wake(&at25dfx_chip);
 	
 	//Checks if the chip is responsive
 	if (at25dfx_chip_check_presence(&at25dfx_chip) != STATUS_OK) {
-		// Handle missing or non-responsive device
+	// Handle missing or non-responsive device
 		printf("Chip is unresponsive\r\n");
 	}
 	
+//	config_print_public_key();
+//	config_print_public_key();
+
 	//at25dfx_chip_wake(&at25dfx_chip);
 
 	// Initialize Wi-Fi parameters structure.
