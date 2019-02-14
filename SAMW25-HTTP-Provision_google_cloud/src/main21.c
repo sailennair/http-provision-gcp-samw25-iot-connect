@@ -23,7 +23,8 @@ This application makes use of various example projects supplied by Microchip
 "-- Compiled: "__DATE__ " "__TIME__ " --"STRING_EOL
 
 
-char help[620] = "Welcome to SAMW25 Google Cloud Connect\r\n"
+char help[650] = "Welcome to SAMW25 Google Cloud Connect\r\n"
+"All commands should be executed when disconnected from the MQTT bridge.\r\n"
 "----COMMANDS---- \r\n"
 "GCP:CONNECT:0 - CONNECT to Google Cloud\r\n"
 "GCP:CLIENTID:{new clientID} - Change the Client ID \r\n"
@@ -530,7 +531,7 @@ void handle_tcp_command(char* inputMessage){
 	
 	
 	while (pch != NULL){
-		printf("%s\n", pch);
+		//printf("%s\n", pch);
 		CommandArray[count++] = pch;
 		pch = strtok(NULL, ":");
 		
@@ -653,7 +654,7 @@ static void mqtt_callback(struct mqtt_module *module_inst, int type, union mqtt_
 		{
 			//Once the MQTT bridge is connected between the device and the broker, can now attempt to connect to device project
 			if (data->sock_connected.result >= 0) {
-				printf("\r\nConnecting to Broker...");
+				printf("\r\nConnecting to Broker...\r\n");
 				char mqtt_password[1024];
 				size_t size1 = 512;
 				//memset(mqtt_password, 0, sizeof mqtt_password);
@@ -774,11 +775,12 @@ int config_mqtt_password(char* buf, size_t buflen){
 
 		/* Build the JWT */
 		
-	if(config_device(ATECC108A, ECC108_I2C_ADDR)){
-		printf("ATECC108A Configured\r\n");
-	}
+		if(config_device(ATECC108A, ECC108_I2C_ADDR)){
+			printf("ATECC108A Configured\r\n");
+		}
 
 		delay_ms(150);
+		
 		rv = atca_jwt_init(&jwt, buf, buflen);
 		if(ATCA_SUCCESS != rv)
 		{
@@ -804,7 +806,7 @@ int config_mqtt_password(char* buf, size_t buflen){
 		if(rv != ATCA_SUCCESS){
 			
 		}
-		printf("The JWT token is: %s\r\n", jwt);
+		//printf("The JWT token is: %s\r\n", jwt);
 
 		atcab_release();
 	}
@@ -931,7 +933,7 @@ void handle_input_message(void)
 				
 				
 				while (pch != NULL){
-					printf("%s\n", pch);
+					//printf("%s\n", pch);
 					
 					CommandArray[count++] = pch;
 					
@@ -940,18 +942,18 @@ void handle_input_message(void)
 				}
 				
 				
-				for (arrCount = 0; arrCount < 3 ; arrCount++){
-					//	printf("arr count is %d\r\n", arrCount);
-					printf("Value %d in the array is %s\r\n",arrCount, CommandArray[arrCount] );
-				}
+// 				for (arrCount = 0; arrCount < 3 ; arrCount++){
+// 					//	printf("arr count is %d\r\n", arrCount);
+// 					printf("Value %d in the array is %s\r\n",arrCount, CommandArray[arrCount] );
+// 				}
 				
 				size_t commandSize = 3;
 				size_t connectSize = 7;
 				size_t sendSize = 4;
 				char *message = "Hello World";
 				
-				printf("Done Splitting\r\n");
-				printf("The command is %s\r\n", CommandArray[0]);
+			//	printf("Done Splitting\r\n");
+			//	printf("The command is %s\r\n", CommandArray[0]);
 				
 				
 				if(!strncmp("TCP",CommandArray[0],commandSize)){
