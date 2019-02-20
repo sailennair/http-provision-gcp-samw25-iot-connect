@@ -35,7 +35,7 @@ extern "C" {
 
 	#define MAIN_MAC_ADDRESS						      {0xf8, 0xf0, 0x05, 0x45, 0xD4, 0x84}
 	
-	#define MAIN_WIFI_M2M_PRODUCT_NAME					  "ACK-WINC"
+	#define MAIN_WIFI_M2M_PRODUCT_NAME					  "ACK-WINC\r\n"
 
 	#define MAIN_WIFI_M2M_SERVER_IP						  0xFFFFFFFF /* 255.255.255.255 */
 

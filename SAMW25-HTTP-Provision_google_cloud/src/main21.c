@@ -35,7 +35,7 @@ char help[650] = "Welcome to SAMW25 Google Cloud Connect\r\n"
 "GCP:UPDATE-CLIENTID - Update the client ID with the changed details\r\n"
 "GCP:PUB-TOPIC:{new publish topic} - Change the publish topic \r\n"
 "GCP:STOP - Disconnect from Google Cloud\r\n"
-"-----END OF COMMANDS----";	
+"-----END OF COMMANDS----\r\n";
 
 
 //UART module for debug.
@@ -45,7 +45,6 @@ static struct usart_module cdc_uart_module;
 char mqtt_user[64] = "unused";
 
 //Enough space is needed for the password as it is a large JWT
-
 
 //Each client ID is unique to the device
 char clientID[256] = "projects/altron-atwinc1500/locations/europe-west1/registries/arrow-registry/devices/samw25-iot";
@@ -95,8 +94,6 @@ static uint8_t gau8SocketTestBuffer[MAIN_WIFI_M2M_BUFFER_SIZE];
 
 //IP address is converted to a number that can be used by the WINC
 long long int IPnumber;
-
-
 
 #define AT25DFX_BUFFER_SIZE  (100)
 
@@ -150,8 +147,6 @@ struct at25dfx_chip_module at25dfx_chip;
 
 static uint8_t wifi_connected = 0;
 
-
-
 void handle_tcp_command(char* inputMessage);
 
 // Prototype for MQTT subscribe Callback
@@ -170,6 +165,7 @@ void publishToGCP(void);
 void disconnectGCP(void);
 
 void event_counter(struct events_resource *resource);
+
 
 static void uart_callback(const struct usart_module *const module)
 {
@@ -383,7 +379,7 @@ static void server_socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 		/* Message send */
 		case SOCKET_MSG_SEND:
 		{
-
+			memset(gau8SocketBuffer, 0, sizeof(gau8SocketBuffer));
 			recv(tcp_client_socket, gau8SocketBuffer, sizeof(gau8SocketBuffer), 0);
 			
 		}
@@ -396,10 +392,13 @@ static void server_socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 			if (pstrRecv && pstrRecv->s16BufferSize > 0) {
 				printf("socket_cb: recv success!\r\n");
 				//Handle the command and execute the appropriate function if there is for the command.
+				printf("The message received is %s\r\n", pstrRecv->pu8Buffer);
 				handle_tcp_command(pstrRecv->pu8Buffer);
-				//printf("The message received is %s\r\n", pstrRecv->pu8Buffer);
 				
-				send(tcp_client_socket, &msg_wifi_product, sizeof(t_msg_wifi_product), 0);
+				memset(pstrRecv->pu8Buffer, 0, sizeof(pstrRecv->pu8Buffer));
+				memset(gau8SocketBuffer, 0, sizeof(gau8SocketBuffer));
+				
+			//	send(tcp_client_socket, &msg_wifi_product, sizeof(t_msg_wifi_product), 0);
 				
 				}else {
 				printf("socket_cb: recv error!\r\n");
@@ -478,7 +477,7 @@ static void socket_event_handler(SOCKET sock, uint8_t msg_type, void *msg_data)
 	}
 }
 
-//Intialising the ATECC108A
+//Intialising the AT25df serial flash chip
 static void at25dfx_init(void)
 {
 	struct at25dfx_chip_config at25dfx_chip_config;
@@ -634,16 +633,27 @@ void handle_tcp_command(char* inputMessage){
 			send(tcp_client_socket, ack_message, strlen(ack_message), 0);
 		}
 		
-		/*
-		if(!strncmp("PUBLISH", CommandArray[1], connectSize)){
-		canPublish = true;
-		publishToGCP();
-		}
-		*/
 	}
 	
-	
-	
+	if(!strncmp("LED", CommandArray[0], commandSize)){
+		if(!strncmp("ON",CommandArray[1], strlen("ON"))){
+			port_pin_set_output_level(LED0_PIN, LED_0_ACTIVE);
+		}
+		if(!strncmp("OFF", CommandArray[1], strlen("OFF"))){
+			port_pin_set_output_level(LED0_PIN, LED_0_INACTIVE);
+		}
+		if(!strncmp("TOGGLE", CommandArray[1], strlen("TOGGLE"))){
+			port_pin_toggle_output_level(LED0_PIN);
+		}
+		if(!strncmp("BLINK", CommandArray[1], strlen("BLINK"))){
+			int i;
+			for(i = 0; i < atoi(CommandArray[2]); i++){
+				port_pin_toggle_output_level(LED0_PIN);
+				delay_ms(500);
+			}
+			port_pin_set_output_level(LED0_PIN, LED_0_INACTIVE);
+		}
+	}
 }
 
 
@@ -832,11 +842,11 @@ int config_print_public_key(void)
 	int i;
 	ATCA_STATUS rv;
 	
-	 rv = atcab_init(&cfg_ateccx08a_i2c_default);
-	 if(ATCA_SUCCESS != rv)
-	 {
-		 return rv;
-	 }
+	rv = atcab_init(&cfg_ateccx08a_i2c_default);
+	if(ATCA_SUCCESS != rv)
+	{
+		return rv;
+	}
 	
 	// Calculate where the raw data will fit into the buffer
 	tmp = buf + sizeof(buf) - ATCA_PUB_KEY_SIZE - sizeof(public_key_x509_header);
@@ -870,7 +880,7 @@ int config_print_public_key(void)
 
 }
 
-//This function takes in a string IP address and yeilds a single number that the WINC can connect to
+//This function takes in a string IP address and yields a single number that the WINC can connect to
 long long int calculateIP(char *IPstring){
 	
 	char* p;
@@ -942,18 +952,18 @@ void handle_input_message(void)
 				}
 				
 				
-// 				for (arrCount = 0; arrCount < 3 ; arrCount++){
-// 					//	printf("arr count is %d\r\n", arrCount);
-// 					printf("Value %d in the array is %s\r\n",arrCount, CommandArray[arrCount] );
-// 				}
+				// 				for (arrCount = 0; arrCount < 3 ; arrCount++){
+				// 					//	printf("arr count is %d\r\n", arrCount);
+				// 					printf("Value %d in the array is %s\r\n",arrCount, CommandArray[arrCount] );
+				// 				}
 				
 				size_t commandSize = 3;
 				size_t connectSize = 7;
 				size_t sendSize = 4;
 				char *message = "Hello World";
 				
-			//	printf("Done Splitting\r\n");
-			//	printf("The command is %s\r\n", CommandArray[0]);
+				//	printf("Done Splitting\r\n");
+				//	printf("The command is %s\r\n", CommandArray[0]);
 				
 				
 				if(!strncmp("TCP",CommandArray[0],commandSize)){
@@ -970,6 +980,9 @@ void handle_input_message(void)
 					
 					
 				}
+				if (!strncmp("HELP",CommandArray[0], strlen("HELP"))){
+					printf("%s\r\n", help);
+				}
 				
 				if(!strncmp("GCP", CommandArray[0], commandSize)){
 					printf("Google Cloud Command");
@@ -978,11 +991,68 @@ void handle_input_message(void)
 						publishToGCP();
 						canPublish = true;
 					}
-					/*
-					if(!strncmp("PUBLISH", CommandArray[1], connectSize)){
-					publishToGCP();
+					if(!strncmp("STOP", CommandArray[1], strlen("STOP"))){
+						disconnectGCP();
+						printf("Disconnected from Google Cloud\r\n");
+					
 					}
-					*/
+				
+					if(!strncmp("CLIENTID", CommandArray[1], strlen("CLIENTID"))){
+						printf("Changing Client ID \r\n");
+						strcpy(clientID, CommandArray[2]);
+						printf("The new Client ID is %s\r\n", clientID);
+				
+					}
+				
+					if(!strncmp("USERNAME", CommandArray[1], strlen("USERNAME"))){
+						printf("Changing the Username \r\n");
+						strcpy(mqtt_user, CommandArray[2]);
+						printf("The new username is %s\r\n", mqtt_user);
+					}
+				
+					if(!strncmp("PROJECTID", CommandArray[1], strlen("PROJECTID"))){
+						printf("Changing the PROJECTID \r\n");
+						strcpy(PROJECT_ID, CommandArray[2]);
+						printf("The new projectID is %s\r\n", PROJECT_ID);
+				
+					}
+				
+					if(!strncmp("REGIONID", CommandArray[1], strlen("REGIONID"))){
+						printf("Changing the REGIONID \r\n");
+						strcpy(REGION_ID, CommandArray[2]);
+						printf("The new regionID is %s\r\n", REGION_ID);
+					
+					}
+
+					if(!strncmp("REGISTRYID", CommandArray[1], strlen("REGISTRYID"))){
+						printf("Changing the REGISTRYID \r\n");
+						strcpy(REGISTRY_ID, CommandArray[2]);
+						printf("The new registryID is %s\r\n", REGISTRY_ID);
+					
+					}
+
+					if(!strncmp("DEVICEID", CommandArray[1], strlen("DEVICEID"))){
+						printf("Changing the DEVICEID \r\n");
+						strcpy(DEVICE_ID, CommandArray[2]);
+						printf("The new deviceID is %s\r\n", DEVICE_ID);
+					
+					}
+				
+					if(!strncmp("UPDATE-CLIENTID", CommandArray[1], strlen("UPDATE-CLIENTID"))){
+						printf("Updating the ClientID \r\n");
+						updateClientID();
+						printf("The new clientID is %s\r\n", clientID);
+					
+					}
+				
+					if (!strncmp("PUB-TOPIC", CommandArray[1], strlen("PUB-TOPIC"))){
+						printf("Updating the publish topic\r\n");
+						strcpy(MAIN_CHAT_TOPIC, CommandArray[2]);
+						printf("The new publish topic is %s\r\n", MAIN_CHAT_TOPIC);
+					
+					}
+					
+					
 				}
 				
 				if (uart_buffer_written > i + 1) {
@@ -1017,7 +1087,7 @@ void publishToGCP(void){
 	char publishMessage [50];
 	sprintf(publishMessage, "{timestamp: %u}", utc) ;
 	mqtt_publish(&mqtt_inst, MAIN_CHAT_TOPIC, publishMessage, strlen(publishMessage), 0, 0);
-	printf("Message -- %s-- has been published\r\n", publishMessage);
+	printf("Message --%s-- has been published\r\n", publishMessage);
 	//Need to make this bool false, as allows the interrupt system to work.
 	publishInterruptBool = false;
 }
@@ -1049,6 +1119,8 @@ int commandTCP(char* IPAddress){
 		}
 	}
 }
+
+
 
 //Sends a message over the TCP Client connection, will only work if there is a connection to a tcp client
 void sendTCP(char* message){
@@ -1113,9 +1185,9 @@ void event_counter(struct events_resource *resource)
 {
 	if(events_is_interrupt_set(resource, EVENTS_INTERRUPT_DETECT)) {
 		//printf("Event fired!\r\n");
-		//Only when the two bools are tru will the "publishInterruptBool" become true.
-		//When it is true, the if statment in main will pass and the application wil publish to GCP
-		//The interrupt service cannot publish to the cloud as the interrupt service freezes alot of the functionality
+		//Only when the two bools are true will the "publishInterruptBool" become true.
+		//When it is true, the if statement in main will pass and the application will publish to GCP
+		//The interrupt service cannot publish to the cloud as the interrupt service freezes a lot of the functionality
 		//which may include the wifi module
 		if(canPublish == true && gcpConnected == true){
 			publishInterruptBool = true;
@@ -1172,9 +1244,9 @@ int main(void)
 	
 	
 	// Initialise the ATECC108A
-// 	if(config_device(ATECC108A, ECC108_I2C_ADDR)){
-// 		printf("ATECC108A Configured\r\n");
-// 	}
+	// 	if(config_device(ATECC108A, ECC108_I2C_ADDR)){
+	// 		printf("ATECC108A Configured\r\n");
+	// 	}
 
 	at25dfx_init();
 	
@@ -1183,12 +1255,12 @@ int main(void)
 	
 	//Checks if the chip is responsive
 	if (at25dfx_chip_check_presence(&at25dfx_chip) != STATUS_OK) {
-	// Handle missing or non-responsive device
+		// Handle missing or non-responsive device
 		printf("Chip is unresponsive\r\n");
 	}
 	
-//	config_print_public_key();
-//	config_print_public_key();
+	//	config_print_public_key();
+	//	config_print_public_key();
 
 	//at25dfx_chip_wake(&at25dfx_chip);
 
