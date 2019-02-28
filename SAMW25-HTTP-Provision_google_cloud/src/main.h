@@ -29,7 +29,7 @@ extern "C" {
 	//Port the TCP client will connect to
 	#define MAIN_WIFI_M2M_EXTERNAL_SERVER_PORT			  (2323)
 
-	#define MAIN_HTTP_PROV_SERVER_DOMAIN_NAME             "arrowConfig.com"
+	#define MAIN_HTTP_PROV_SERVER_DOMAIN_NAME             "arrowconfig.com"
 
 	#define MAIN_M2M_DEVICE_NAME						  "WINC1500_00:00"
 

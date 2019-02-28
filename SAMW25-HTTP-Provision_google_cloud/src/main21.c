@@ -23,7 +23,7 @@ This application makes use of various example projects supplied by Microchip
 "-- Compiled: "__DATE__ " "__TIME__ " --"STRING_EOL
 
 
-char help[650] = "Welcome to SAMW25 Google Cloud Connect\r\n"
+char help[850] = "Welcome to SAMW25 Google Cloud Connect\r\n"
 "All commands should be executed when disconnected from the MQTT bridge.\r\n"
 "----COMMANDS---- \r\n"
 "GCP:CONNECT:0 - CONNECT to Google Cloud\r\n"
@@ -35,6 +35,10 @@ char help[650] = "Welcome to SAMW25 Google Cloud Connect\r\n"
 "GCP:UPDATE-CLIENTID - Update the client ID with the changed details\r\n"
 "GCP:PUB-TOPIC:{new publish topic} - Change the publish topic \r\n"
 "GCP:STOP - Disconnect from Google Cloud\r\n"
+"LED:ON - Turn LED on\r\n"
+"LED:OFF - Turn LEF off\r\n"
+"LED:TOGGLE - Toggle the state of the LED\r\n"
+"LED:BLINK:{no. of times to blink} - blink LED number of times\r\n"
 "-----END OF COMMANDS----\r\n";
 
 
